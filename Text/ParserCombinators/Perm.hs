@@ -7,7 +7,7 @@
 -- 
 -- Maintainer  :  athas@sigkill.dk
 -- Stability   :  stable
--- Portability :  non-portable (uses existentially quantified data constructors)
+-- Portability :  non-portable (uses RankNTypes)
 -- 
 -- This module implements permutation parsers, and is a generalisation
 -- of 'Text.Parsec.Perm' that will work with any parser combinator

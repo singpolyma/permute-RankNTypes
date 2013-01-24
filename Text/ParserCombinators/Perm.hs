@@ -1,4 +1,4 @@
-{-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE RankNTypes #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Text.ParserCombinators.Perm
@@ -108,7 +108,12 @@ f <$?> (x,p) = newperm f <|?> (x,p)
 
 data PermParser p a = Perm (Maybe a) [StreamBranch p a]
 
-data StreamBranch p a = forall b. Branch (PermParser p (b -> a)) (p b)
+data StreamBranch p a = Branch (forall r. (forall b. (PermParser p (b -> a), p b) -> r) -> r)
+
+mkBranch :: PermParser p (b -> a) -> p b -> StreamBranch p a
+mkBranch perm p = Branch (\k ->
+		k (perm, p)
+	)
 
 choice :: Alternative a => [a b] -> a b
 choice = foldl (<|>) empty
@@ -130,9 +135,9 @@ permute (Perm def xs) = choice (map branch xs ++ empty)
   where empty = case def of Nothing -> []
                             Just x  -> [return x]
 
-        branch (Branch perm p) = do x <- p
-                                    f <- permute perm
-                                    return (f x)
+        branch (Branch br) = br $ \(perm, p) -> do x <- p
+                                                   f <- permute perm
+                                                   return (f x)
 
 -- build permutation trees
 newperm :: (a -> b) -> PermParser p (a -> b)
@@ -140,14 +145,14 @@ newperm f = Perm (Just f) []
 
 add :: PermParser p (a -> b) -> p a -> PermParser p b
 add perm@(Perm _mf fs) p = Perm Nothing (first:map insert fs)
-  where first                    = Branch perm p
-        insert (Branch perm' p') = Branch (add (mapPerms flip perm') p) p'
+  where first                    = mkBranch perm p
+        insert (Branch br) = br (\(perm',p') -> mkBranch (add (mapPerms flip perm') p) p')
 
 addopt :: PermParser p (a -> b) -> a -> p a -> PermParser p b
 addopt perm@(Perm mf fs) x p = Perm (fmap ($ x) mf) (first:map insert fs)
-  where first                    = Branch perm p
-        insert (Branch perm' p') = Branch (addopt (mapPerms flip perm') x p) p'
+  where first                    = mkBranch perm p
+        insert (Branch br) = br (\(perm', p') -> mkBranch (addopt (mapPerms flip perm') x p) p')
 
 mapPerms :: (a -> b) -> PermParser p a -> PermParser p b
 mapPerms f (Perm x xs) = Perm (fmap f x) (map mapBranch xs)
-  where mapBranch (Branch perm p) = Branch (mapPerms (f.) perm) p
+  where mapBranch (Branch br) = br (\(perm, p) -> mkBranch (mapPerms (f.) perm) p)

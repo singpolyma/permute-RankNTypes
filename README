@@ -1,0 +1,3 @@
+This is a very small tweak to the excellent <http://hackage.haskell.org/package/permute> library to change it from using ExistentialQuantification (which I at least find unappealing as a language extension) to using RankNTypes (which is something Haskell98 only lacks because of the implications for type inference).
+
+The transformation is quite small and entirely mechanical.
